@@ -26,7 +26,6 @@ SECRET_KEY = 'o5x_ev&d$v1*6#vgm=u-_q7m$v2vm58@gr&544_3k(vx59^_en'
 DEBUG = True
 
 # ALLOWED_HOSTS = []
-ALLOWED_HOSTS = ['.vercel.app', '127.0.0.1']
 
 
 # Application definition
@@ -208,7 +207,6 @@ OAUTH2_PROVIDER = {
 
 
 OAUTH_ACCESS_TOKEN_MODEL = 'oauth2_provider.models.AccessToken'
-AUTH_USER_MODEL = 'api.User'
 
 # cookie 
 TOKEN_COOKIE_NAME = "token"
@@ -256,6 +254,10 @@ LOGGING = {
 
 CLIENT_ID = "bdmW3Kbs0fUDPLTO0kGbamLUsg0qmRLA45pG7Hz5"
 CLIENT_SECRET = "OELQWJsqojUKyryxS98Kf1kYvBjNCEmqJIrn5DDUVSQk5nvYgkBYf0bA6L81ZPWkpco3qsAQK08EGh2IQxJ9dsR2gtG4TWLJv7NETMKvyI6RmIoRA7vbBdz9Sl3OvK8o"
+
+
+# CLIENT_ID = "YV49s60WC2RutKU8L1itISqFGfmOoMdQVt7nX5jp"
+# CLIENT_SECRET = "XqKC6p3rQPuOkAFb83ltzWIZyZgx2T5GOe6ITEK2BCWDjLCo5zBRtxoa5ydR3RcB8bnvmDetU8nc9dG6MFhlMZ3tYPubGUi4iVVq5SHS7woTPqBLRrurfHKpZniLmoEW"
 
 
 

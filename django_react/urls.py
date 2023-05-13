@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/', include('api.urls')),
     path('', include('frontend.urls')),
     
+    
     # path('oauth/token/',token, name='access_token'),
 
     path('oauth2/authorize/', AuthorizationView.as_view(), name='authorize'),
