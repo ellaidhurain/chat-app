@@ -1,4 +1,4 @@
-from datetime import timezone
+from datetime import timedelta, timezone
 from django.shortcuts import render
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -34,57 +34,61 @@ from oauth2_provider.models import get_application_model
 from oauth2_provider.views import AuthorizationView as BaseAuthorizationView
 from oauth2_provider.views import TokenView as BaseTokenView
 import requests
-from oauth2_provider.models import AccessToken, Application, RefreshToken
+# from oauth2_provider.models import AccessToken, Application, RefreshToken
 from django.views.decorators.csrf import csrf_exempt,csrf_protect
 from django.middleware import csrf
 from django.middleware.csrf import get_token
-
-class MyApiView(ProtectedResourceView):
-    def get(self, request, *args, **kwargs):
-        return JsonResponse({"message": "Hello, OAuth2 user!"})
+import jwt
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
-class GoogleLoginView(View):
-    @psa("social:begin", "google-oauth2")
-    def get(self, request, *args, **kwargs):
-        return self.backend(request, *args, **kwargs)
 
-    def backend(self, request, *args, **kwargs):
-        return redirect(reverse("oauth2_callback"))
+# class MyApiView(ProtectedResourceView):
+#     def get(self, request, *args, **kwargs):
+#         return JsonResponse({"message": "Hello, OAuth2 user!"})
 
 
-class GoogleCallbackView(TemplateView):
-    template_name = "oauth2_callback.html"
+# class GoogleLoginView(View):
+#     @psa("social:begin", "google-oauth2")
+#     def get(self, request, *args, **kwargs):
+#         return self.backend(request, *args, **kwargs)
 
-    @psa("social:complete", "google-oauth2")
-    def get(self, request, *args, **kwargs):
-        user = request.backend.do_auth(request.GET.get("access_token"))
-        if user:
-            login(request, user)
-            return redirect(reverse("home"))
-        else:
-            return self.render_to_response({})
+#     def backend(self, request, *args, **kwargs):
+#         return redirect(reverse("oauth2_callback"))
 
 
-class AuthorizationView(BaseAuthorizationView):
-    def get(self, request, *args, **kwargs):
-        if request.user.is_authenticated:
-            application = Application.objects.get(
-                client_id=self.request.GET.get("client_id", "")
-            )
-            if application.owner == request.user:
-                return super().get(request, *args, **kwargs)
-        return redirect(reverse("login"))
+# class GoogleCallbackView(TemplateView):
+#     template_name = "oauth2_callback.html"
+
+#     @psa("social:complete", "google-oauth2")
+#     def get(self, request, *args, **kwargs):
+#         user = request.backend.do_auth(request.GET.get("access_token"))
+#         if user:
+#             login(request, user)
+#             return redirect(reverse("home"))
+#         else:
+#             return self.render_to_response({})
 
 
-class TokenView(BaseTokenView):
-    def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        if response.status_code == 200:
-            data = response.json()
-            data["user_id"] = request.user.id
-            response = JsonResponse(data)
-        return response
+# class AuthorizationView(BaseAuthorizationView):
+#     def get(self, request, *args, **kwargs):
+#         if request.user.is_authenticated:
+#             application = Application.objects.get(
+#                 client_id=self.request.GET.get("client_id", "")
+#             )
+#             if application.owner == request.user:
+#                 return super().get(request, *args, **kwargs)
+#         return redirect(reverse("login"))
+
+
+# class TokenView(BaseTokenView):
+#     def post(self, request, *args, **kwargs):
+#         response = super().post(request, *args, **kwargs)
+#         if response.status_code == 200:
+#             data = response.json()
+#             data["user_id"] = request.user.id
+#             response = JsonResponse(data)
+#         return response
 
 
 class TodoListView(generics.ListAPIView):
@@ -92,14 +96,14 @@ class TodoListView(generics.ListAPIView):
     serializer_class = TodoSerializer
 
 
-def check(request, *args, **kwargs):
-    context = {"firstname": "ellaidhurai", "lastname": "ed"}
-    return render(request, "frontend/index.html", context)
+# def check(request, *args, **kwargs):
+#     context = {"firstname": "ellaidhurai", "lastname": "ed"}
+#     return render(request, "frontend/index.html", context)
 
 
-@api_view(["POST"])
-def room(request, room_name):
-    pass
+# @api_view(["POST"])
+# def room(request, room_name):
+#     pass
 
 
 @api_view(["POST"])
@@ -126,7 +130,7 @@ def create_user(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@func_token_required
+# @func_token_required
 @api_view(["GET"])
 def get_user(request):
     try:
@@ -210,79 +214,114 @@ def login_user(request):
     # get user input
     username = request.data["username"]
     password = request.data["password"]
-
-    # check email has registered
+    
+     # check if user exists and is active
     user = authenticate(request, username=username, password=password)
+    if user is None:
+        return Response({"detail": "Invalid username or password"}, status=status.HTTP_400_BAD_REQUEST)
+    elif not user.is_active:
+        return Response({"detail": "User is inactive"}, status=status.HTTP_400_BAD_REQUEST)
 
-    token_url = "http://localhost:8000/o/token/"
-    data = {
-        "grant_type": "password",
-        "username": user.username,
-        "password": password,
-        "client_id": settings.CLIENT_ID,
-        "client_secret": settings.CLIENT_SECRET,
+   # send payload to verify in decode
+    payload = {
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "exp": (datetime.utcnow() + timedelta(minutes=15)).isoformat(),
+            "iat": datetime.utcnow().isoformat(),
+        }
     }
+     # generate JWT tokens
+    access_token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+    refresh_token = RefreshToken.for_user(user)
 
-    try:
-        response = requests.post(token_url, data=data)
-        response.raise_for_status()
-        full_token = response.json()
-        access_token = response.json().get("access_token")
-        csrf_token = csrf.get_token(request)
+    # token = {"refresh": str(refresh_token), "access": access_token}
 
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-             'X-CSRFToken': csrf_token,
-             'Content-Type': 'application/json'   
-                }
-        res = Response()
-        # res.set_cookie(
-        #     key=settings.TOKEN_COOKIE_NAME,
-        #     value=access_token,
-        #     max_age=settings.TOKEN_EXPIRATION_TIME,
-        #     secure=settings.SESSION_COOKIE_SECURE,
-        #     httponly=True,
-        #     samesite=settings.SESSION_COOKIE_SAMESITE,
-        # )
-        # print("Cookie:", res.cookies)
-        # print('Headers:', res.headers)
-    except requests.exceptions.HTTPError as error:
-        return Response(
-            {"detail": "Could not get access token"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-
-    # return token in response
-    return Response({"oauth_token": full_token}, status=status.HTTP_200_OK, headers=headers)
+    # create response object
+    response = Response(status=status.HTTP_200_OK)
+    response['Authorization'] = f'Bearer {access_token}'
+    response['Refresh-Token'] = str(refresh_token)
+    return response
 
 
-@api_view(["POST"])
-def token(request):
-    r = requests.post(
-        "http://localhost:8000/o/token/",
-        data={
-            "grant_type": "password",
-            "username": request.data["username"],
-            "password": request.data["password"],
-            "client_id": settings.CLIENT_ID,
-            "client_secret": settings.CLIENT_SECRET,
-        },
-    )
-    return Response(r.json())
+# @api_view(["POST"])
+# def login_user(request):
+#     # get user input
+#     username = request.data["username"]
+#     password = request.data["password"]
+
+#     # check email has registered
+#     user = authenticate(request, username=username, password=password)
+
+#     token_url = "http://localhost:8000/o/token/"
+#     data = {
+#         "grant_type": "password",
+#         "username": user.username,
+#         "password": password,
+#         "client_id": settings.CLIENT_ID,
+#         "client_secret": settings.CLIENT_SECRET,
+#     }
+
+#     try:
+#         response = requests.post(token_url, data=data)
+#         response.raise_for_status()
+#         full_token = response.json()
+#         access_token = response.json().get("access_token")
+#         csrf_token = csrf.get_token(request)
+
+#         headers = {
+#             "Authorization": f"Bearer {access_token}",
+#              'X-CSRFToken': csrf_token,
+#              'Content-Type': 'application/json'   
+#                 }
+#         res = Response()
+#         # res.set_cookie(
+#         #     key=settings.TOKEN_COOKIE_NAME,
+#         #     value=access_token,
+#         #     max_age=settings.TOKEN_EXPIRATION_TIME,
+#         #     secure=settings.SESSION_COOKIE_SECURE,
+#         #     httponly=True,
+#         #     samesite=settings.SESSION_COOKIE_SAMESITE,
+#         # )
+#         # print("Cookie:", res.cookies)
+#         # print('Headers:', res.headers)
+#     except requests.exceptions.HTTPError as error:
+#         return Response(
+#             {"detail": "Could not get access token"},
+#             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#         )
+
+#     # return token in response
+#     return Response({"oauth_token": full_token}, status=status.HTTP_200_OK, headers=headers)
 
 
-@api_view(["POST"])
-def refresh_token(request):
-    r = requests.post(
-        "http://localhost:8000/o/token/",
-        data={
-            "grant_type": "refresh_token",
-            "refresh_token": request.data["refresh_token"],
-            "client_id": settings.CLIENT_ID,
-            "client_secret": settings.CLIENT_SECRET,
-        },
-    )
-    return Response(r.json())
+# @api_view(["POST"])
+# def token(request):
+#     r = requests.post(
+#         "http://localhost:8000/o/token/",
+#         data={
+#             "grant_type": "password",
+#             "username": request.data["username"],
+#             "password": request.data["password"],
+#             "client_id": settings.CLIENT_ID,
+#             "client_secret": settings.CLIENT_SECRET,
+#         },
+#     )
+#     return Response(r.json())
+
+
+# @api_view(["POST"])
+# def refresh_token(request):
+#     r = requests.post(
+#         "http://localhost:8000/o/token/",
+#         data={
+#             "grant_type": "refresh_token",
+#             "refresh_token": request.data["refresh_token"],
+#             "client_id": settings.CLIENT_ID,
+#             "client_secret": settings.CLIENT_SECRET,
+#         },
+#     )
+#     return Response(r.json())
 
 
 @csrf_protect
@@ -612,7 +651,6 @@ class OneChatMessageViewSet(GenericViewSet):
         message.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-
 class GroupChatRoomViewSet(GenericViewSet):
     queryset = ChatRoom.objects.all()
     serializer_class = ChatRoomSerializer
@@ -745,7 +783,6 @@ class GroupChatRoomViewSet(GenericViewSet):
             )
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
 
 class GroupMessageViewSet(GenericViewSet):
     queryset = Message.objects.all()

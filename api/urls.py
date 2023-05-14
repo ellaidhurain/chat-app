@@ -1,5 +1,5 @@
 from django.urls import path,include,re_path
-from .views import TodoListView, check
+# from .views import TodoListView, check
 from rest_framework import routers
 from .views import *
 from oauth2_provider.views import AuthorizationView, TokenView
@@ -18,11 +18,11 @@ urlpatterns = [
     # path('oauth2/authorize/', AuthorizationView.as_view(), name='authorize'),
     # path('oauth2/token/', TokenView.as_view(), name='token'),
     
-    path('todo/', TodoListView.as_view()), 
-    path('check/', check), 
+    # path('todo/', TodoListView.as_view()), 
+    # path('check/', check), 
     
     # user CRUD
-    path('user', create_user, name='create_user'),
+    path('create_user', create_user, name='create_user'),
     path('user_signup',register_user, name='create_user'),
     path('user_list', get_user, name='get_user'),
     path('user_profile/get/<int:user_id>', get_user_profile, name='get_user'),
@@ -67,6 +67,6 @@ urlpatterns = [
     # re_path(r'^message/(?P<chat_room_id>\d+)/list/$', GroupMessageViewSet.as_view({'get': 'list'}), name='list_message'),
     
     
-    path('<str:room_name>', room, name='room')
+    # path('<str:room_name>', room, name='room')
 ]
 urlpatterns += social_django_urlpatterns

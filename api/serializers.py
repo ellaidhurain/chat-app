@@ -79,10 +79,16 @@ class OneChatSerializer(serializers.ModelSerializer):
         
         
 class OneChatMessageSerializer(serializers.ModelSerializer):
+    attachment_url = serializers.SerializerMethodField()
     class Meta:
         model = OneChatMessage
         fields = '__all__'
         # depth = 1
+    
+    def get_attachment_url(self, obj):
+        if obj.attachment:
+            return self.context['request'].build_absolute_uri(obj.attachment.url)
+        return None
 
 class ChatRoomSerializer(serializers.ModelSerializer):
     
@@ -93,10 +99,17 @@ class ChatRoomSerializer(serializers.ModelSerializer):
         # relationship instead of id 
 
 class MessageSerializer(serializers.ModelSerializer):
+    attachment_url = serializers.SerializerMethodField()
     class Meta:
         model = Message
         fields = '__all__'
-        
+    
+    def get_attachment_url(self, obj):
+        if obj.attachment:
+            return self.context['request'].build_absolute_uri(obj.attachment.url)
+        return None
+    
+    
 class RecipientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipient

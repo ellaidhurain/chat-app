@@ -19,8 +19,8 @@ from oauth2_provider.views import AuthorizationView, TokenView, token
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('api.urls')),
-    path('', include('frontend.urls')),
+    path('', include('api.urls')),
+    path('api/', include('frontend.urls')),
     
     
     # path('oauth/token/',token, name='access_token'),

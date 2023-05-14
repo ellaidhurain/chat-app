@@ -117,7 +117,13 @@ class OneChatMessage(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     attachment = models.FileField(upload_to='files',validators=[FileExtensionValidator(['pdf', 'jpg', 'jpeg'])], null=True)
     
-    
+    def clean(self):
+        """
+        Check that the file size is less than 10MB.
+        """
+        if self.file.size > 10485760:
+            raise ValidationError("The file size is too large. Maximum size is 10MB.")
+        
  # many to many chat room (group chat) is saved in this table.
  # members field is have many to many relationship with User table.
  # one user will able to send message to many user.
@@ -155,6 +161,13 @@ class Message(models.Model):
     # receiver is added in this table
     # get a message from Message model and receiver from User model 
     
+    def clean(self):
+        """
+        Check that the file size is less than 10MB.
+        """
+        if self.file.size > 10485760:
+            raise ValidationError("The file size is too large. Maximum size is 10MB.")
+        
 class Recipient(models.Model):
     id = models.AutoField(primary_key=True)
     message = models.ForeignKey(Message, on_delete=models.CASCADE)
