@@ -27,7 +27,7 @@ from django.urls import reverse
 from django.views.generic import View
 from django.contrib.auth import login
 from django.views.generic import TemplateView
-from social_django.utils import psa
+# from social_django.utils import psa
 from django.http import Http404, JsonResponse
 from oauth2_provider.views.generic import ProtectedResourceView
 from oauth2_provider.models import get_application_model
